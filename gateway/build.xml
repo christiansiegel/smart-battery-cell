@@ -1,0 +1,153 @@
+<!-- 
+     Smart Battery Cell Gateway
+  
+     Author: Christian Siegel, Aarhus University
+-->
+<project name="gatway" 
+         default="help" 
+         basedir="."
+         xmlns:ivy="antlib:org.apache.ivy.ant">
+         
+  <target name="help">
+    <echo>
+Smart Battery Cell Gateway
+
+  Development targets 
+    clean:     Remove all intermediate files and folders
+    test:      Run JUnit test cases
+    javadoc:   Generate javadoc for code
+
+  Execution targets
+    daemon:    Run Smart Battery Cell Gateway daemon.
+    
+  Opther targets
+    See: ant -p
+
+  Christian Siegel, Aarhus University, 2016 
+    </echo>
+  </target>
+
+  <!-- Folder properties -->
+  <property name="src.dir" value="src" />  
+  <property name="test.dir" value="test" />
+  <property name="lib.dir" value="lib" />
+  <property name="build.dir" value="build" />
+  <property name="javadoc.dir" value="javadoc" />
+
+  <!-- JaCoCo Coverage analysis -->
+  <taskdef uri="antlib:org.jacoco.ant" resource="org/jacoco/ant/antlib.xml">
+    <classpath path="lib-core/jacocoant.jar"/>
+  </taskdef>
+  <property name="test.output.directory" value="jacoco" />
+  <property name="jacoco.report.dir" value="${test.output.directory}/report" />
+  <property name="jacoco.exec" value="${test.output.directory}/jacoco.exec" />
+
+  <!-- Paths used for compilation and run -->
+  <path id="lib.path.id">
+    <fileset dir="${lib.dir}" />
+  </path>
+  <path id="run.path.id">
+    <path refid="lib.path.id" />
+    <path location="${build.dir}" />
+  </path>
+  
+  <!-- House holding -->
+  <target name="clean" description="clean everything">
+    <delete dir="${build.dir}"/>
+    <delete dir="${lib.dir}"/>
+    <delete dir="${test.output.directory}"/>
+    <delete dir="${javadoc.dir}"/>
+  </target>
+  
+  <target name="prepare">
+    <mkdir dir="${build.dir}"/>
+    <mkdir dir="${lib.dir}"/>
+    <mkdir dir="${test.output.directory}"/>
+    <mkdir dir="${javadoc.dir}"/>
+  </target>
+  
+  <!-- Ivy dependency management -->
+  <target name="resolve" 
+         description="retrieve dependencies with Ivy">
+    <ivy:retrieve/>
+  </target>    
+  
+  <target name="report" depends="resolve" 
+          description="generates a report of dependencies for Ivy">
+    <ivy:report todir="${build.dir}"/>
+  </target>
+
+  <!-- Compilation tasks -->
+  <target name="build.src" depends="prepare,resolve"
+          description="compile production code source files">
+    <javac srcdir="${src.dir}"
+       destdir="${build.dir}"
+       debug="on" 
+       classpathref="lib.path.id" 
+       includeAntRuntime="false">
+    </javac>
+  </target>
+
+  <target name="build.test" depends="build.src"
+          description="compile test code source files">
+    <javac srcdir="${test.dir}"
+       destdir="${build.dir}"
+       debug="on" 
+       classpathref="lib.path.id" 
+       includeAntRuntime="false">
+    </javac>
+  </target>
+  
+  <!-- Build everything -->
+  <target name="build.all" depends="build.test"
+          description="build everything"/>
+
+  <!-- JUnit testing -->
+  <target name="test" depends="build.all"
+          description="run JUnit unit and integration tests">
+    <junit printsummary="yes" 
+           fork="yes" 
+           forkmode="once"
+           haltonfailure="yes">
+      <formatter type="plain"/>
+      <batchtest fork="yes" todir="${test.output.directory}">
+    <fileset dir="${test.dir}">
+      <include name="**/Test*.java"/>
+    </fileset>
+      </batchtest>
+      <classpath refid="run.path.id"/>
+    </junit>
+  </target>
+
+  <!-- JavaDoc generation -->
+  <target name="javadoc" depends="build.src"
+      description="generate javadoc in folder ${javadoc.dir}">
+    <javadoc
+       source = "1.8"
+       packagenames="gateway.*"
+       sourcepath="${src.dir}"
+       destdir="${javadoc.dir}"
+       package="true"
+       doctitle="&lt;b&gt;Smart Battery Cell Gateway&lt;/b&gt;"
+       bottom="Christian Siegel, Aarhus University"
+       windowtitle="Smart Battery Cell Gateway">
+      <sourcepath>
+    <path location="${src.dir}"/>
+      </sourcepath>
+      <classpath>
+    <path refid="run.path.id"/>
+      </classpath>
+    </javadoc>
+    <echo message="Javadoc is in folder: ${javadoc.dir}."/>
+  </target>
+
+  <!-- daemon -->
+  <target name="daemon" 
+          depends="build.all" 
+          description="execute the Smart Battery Cell Gateway daemon">
+    <java classpathref="run.path.id" 
+      classname="gateway.main.Daemon"
+          fork="true">
+    </java>
+  </target>
+</project>

@@ -1,0 +1,202 @@
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<title>Smart Battery Cells</title>
+
+<script type="text/javascript" src="http://ajax.googleapis.com/ajax/libs/jquery/1.8.2/jquery.min.js"></script>
+<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.min.js"></script>
+<script type="text/javascript" src="http://code.highcharts.com/stock/highstock.js"></script>
+<script type="text/javascript" src="http://code.highcharts.com/stock/modules/exporting.js"></script>
+<script type="text/javascript">
+/*
+by @bordignon on twitter
+Feb 2014
+
+Simple example of plotting live mqtt/websockets data using highcharts.
+*/
+
+//settings BEGIN
+	var MQTTbroker = '104.155.38.122';
+	var MQTTport = 9001;
+//settings END
+
+	var chart; // global variable for chart
+	var voltageTopics = new Array();
+
+//mqtt broker
+	var client = new Paho.MQTT.Client(MQTTbroker, MQTTport,
+				"highchart_" + parseInt(Math.random() * 100, 10));
+	client.onMessageArrived = onMessageArrived;
+	client.onConnectionLost = onConnectionLost;
+
+//mqtt connecton options including the mqtt broker subscriptions
+	var options = {
+		timeout: 3,
+		onSuccess: function () {
+			console.log("mqtt connected");
+			// Connection succeeded; subscribe to our topics
+			client.subscribe("smartbatterycells/+/voltage", {qos: 1});
+            client.subscribe("smartbatterycells/+/balancing", {qos: 1});
+            client.subscribe("smartbatterycells/+/balancingMode", {qos: 1});
+		},
+		onFailure: function (message) {
+			console.log("connection failed, ERROR: " + message.errorMessage);
+			window.setTimeout(location.reload(), 20000); //wait 20seconds before trying to connect again.
+		}
+	};
+
+//can be used to reconnect on connection lost
+	function onConnectionLost(responseObject) {
+		console.log("connection lost, ERROR: " + responseObject.errorMessage);
+		window.setTimeout(location.reload(), 20000); //wait 20seconds before trying to connect again.
+	};
+
+//what is done when a message arrives from the broker
+	function onMessageArrived(message) {
+		console.log(message.destinationName, '', message.payloadString);
+
+        if(/\/voltage$/.test(message.destinationName)) {
+            onVoltageMessageArrived(message);
+        } else if (/\/balancing$/.test(message.destinationName)) {
+            onBalancingMessageArrived(message);
+        } else if (/\/balancingMode$/.test(message.destinationName)) {
+            onBalancingModeMessageArrived(message);
+        }
+	};
+
+    function onVoltageMessageArrived(message) {
+        //check if it is a new topic, if not add it to the array
+		if (voltageTopics.indexOf(message.destinationName) < 0) {
+
+		    voltageTopics.push(message.destinationName); //add new topic to array
+		    var y = voltageTopics.indexOf(message.destinationName); //get the index no
+
+		    //create new data series for the chart
+			var newseries = {
+		            id: y,
+		            name: message.destinationName,
+		            data: []
+		            };
+
+			chart.addSeries(newseries); //add the series
+	    };
+
+		var y = voltageTopics.indexOf(message.destinationName); //get the index no of the topic from the array
+		var myEpoch = new Date().getTime(); //get current epoch time
+		var thenum = message.payloadString.replace( /^\D+/g, ''); //remove any text spaces from the message
+		var plotMqtt = [myEpoch, Number(thenum)]; //create the array
+		if (isNumber(thenum)) { //check if it is a real number and not text
+			plot(plotMqtt, y);	//send it to the plot function
+		};
+    }
+
+    function onBalancingModeMessageArrived(message) {
+        var divId = message.destinationName.replace(new RegExp("[^0-9]", 'g'), "");
+
+        if(!$("#" + divId).length) {
+            var cellDiv=$('<div/>').attr({id: divId});
+            cellDiv.css('background-color', 'white');
+            cellDiv.text(divId);
+
+            var balancingModeButton = $('<button/>').attr({class: "balancingModeButton"});
+            balancingModeButton.css("margin-left", 10)
+            balancingModeButton.on("click", function(){
+                var balancingMode = $("#" + divId).find(".balancingModeButton").text() == 'MANUAL' ? 'AUTO' : 'MANUAL';
+                //$("#" + divId).find(".balancingButton").css("visible", balancingMode == 0);
+                var msg = new Paho.MQTT.Message(balancingMode);
+                msg.destinationName = "smartbatterycells/" + divId + "/balancingCommand";
+                client.send(msg);
+            });
+
+            var balancingButton = $('<button/>').attr({class: "balancingButton"});
+            balancingButton.css("margin-left", 10)
+            balancingButton.on("click", function(){
+                var balancing = $("#" + divId).find(".balancingButton").text() == 'Turn ON';
+                var balancingMode = 'MANUAL'
+                var msg = new Paho.MQTT.Message(balancingMode + "+" + (balancing ? 'ON' : 'OFF'));
+                msg.destinationName = "smartbatterycells/" + divId + "/balancingCommand";
+                client.send(msg);
+            });
+            cellDiv.append(balancingModeButton);
+            cellDiv.append(balancingButton);
+
+            $("#balancing").append(cellDiv);
+        }
+
+        $("#" + divId).find(".balancingButton").prop("disabled", message.payloadString == "AUTO");
+        $("#" + divId).find(".balancingModeButton").text(message.payloadString);
+    }
+
+    function onBalancingMessageArrived(message) {
+        var divId = message.destinationName.replace(new RegExp("[^0-9]", 'g'), "");
+        if($("#" + divId).length) {
+            $("#" + divId).find(".balancingButton").text(message.payloadString == 'true' ? 'Turn OFF' : 'Turn ON');
+        }
+    }
+
+//check if a real number
+	function isNumber(n) {
+	  return !isNaN(parseFloat(n)) && isFinite(n);
+	};
+
+//function that is called once the document has loaded
+	function init() {
+		//i find i have to set this to false if i have trouble with timezones.
+		Highcharts.setOptions({
+			global: {
+				useUTC: false
+			}
+		});
+
+		// Connect to MQTT broker
+		client.connect(options);
+	};
+
+//this adds the plots to the chart
+    function plot(point, chartno) {
+    	console.log(point);
+
+        var series = chart.series[0],
+        shift = false;//series.data.length > 30; // shift if the series is longer than 20
+
+        chart.series[chartno].addPoint(point, true, shift);
+	};
+
+//settings for the chart
+	$(document).ready(function() {
+	    chart = new Highcharts.Chart({
+	        chart: {
+	            renderTo: 'container',
+	            defaultSeriesType: 'spline'
+	        },
+	        title: {
+	            text: 'Smart Battery Cells'
+	        },
+	        subtitle: {
+                text: 'broker: ' + MQTTbroker + ' | port: ' + MQTTport
+            },
+	        xAxis: {
+	            type: 'datetime',
+	            tickPixelInterval: 150,
+	            maxZoom: 20 * 1000
+	        },
+	        yAxis: {
+	            minPadding: 0.2,
+	            maxPadding: 0.2,
+	            title: {
+	                text: 'Value',
+	                margin: 80
+	            }
+	        },
+	        series: []
+	    });
+	});
+
+</script>
+</head>
+<body onload="init();"><!--Start the javascript ball rolling and connect to the mqtt broker-->
+    <div id="container" style="height: 500px; min-width: 500px"></div><!-- this the placeholder for the chart-->
+    <h2>Balancing</h2>
+    <div id="balancing"></div>
+</body>
+</html>

@@ -1,0 +1,41 @@
+<ivy-module version="2.0">
+  <info organisation="cloud.cave" module="skycave"/>
+  <dependencies>
+  
+    <!-- https://mvnrepository.com/artifact/junit/junit -->
+    <dependency org="junit" 
+                name="junit" 
+                rev="4.12"/>
+
+	<!-- https://mvnrepository.com/artifact/org.hamcrest/hamcrest-library -->
+    <dependency org="org.hamcrest" 
+                name="hamcrest-library" 
+                rev="1.3"/>
+
+    <!-- https://mvnrepository.com/artifact/org.apache.httpcomponents/httpclient -->
+    <dependency org="org.apache.httpcomponents" 
+                name="httpclient" 
+                rev="4.1.1"/>
+                
+    <!-- https://mvnrepository.com/artifact/com.googlecode.json-simple/json-simple -->
+    <dependency org="com.googlecode.json-simple" 
+                name="json-simple" 
+                rev="1.1.1"/>
+                
+    <!-- https://mvnrepository.com/artifact/com.timgroup/java-statsd-client -->
+    <dependency org="com.timgroup" 
+                name="java-statsd-client" 
+                rev="3.1.0"/>
+                
+    <!-- https://mvnrepository.com/artifact/org.eclipse.paho/org.eclipse.paho.client.mqttv3 -->
+    <dependency org="org.eclipse.paho" 
+                name="org.eclipse.paho.client.mqttv3" 
+                rev="1.0.2"/>
+                
+    <!-- https://mvnrepository.com/artifact/org.yaml/snakeyaml -->
+    <dependency org="org.yaml" 
+                name="snakeyaml" 
+                rev="1.17"/>
+
+  </dependencies>
+</ivy-module>

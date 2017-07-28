@@ -1,0 +1,13 @@
+cellsClient:
+    port: 4444
+    
+webClient:
+    classPath: gateway.comm.web.MqttWebClient
+    host: 104.155.38.122
+    port: 1883    
+    publishInterval: 1000
+    
+batteryPack:
+    cellMemory: 2000
+    cellGarbageCollectorInterval: 500
+    
